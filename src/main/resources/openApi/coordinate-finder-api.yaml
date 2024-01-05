@@ -1,0 +1,41 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Coordinate Findier Api Documentation
+servers:
+  - url: http://127.0.0.1:8070
+
+paths:
+  /coordinate:
+    get:
+      tags:
+        - Find Coordinate
+      summary: Coordinate find service
+      operationId: findCoordinate
+      parameters:
+        - $ref : '#/components/parameters/longitude'
+        - $ref : '#/components/parameters/latitude'
+        - $ref : '#/components/parameters/radius'
+      responses:
+        "200":
+          description: Successful operation
+        default:
+          description: Error
+
+components:
+  parameters:
+    longitude:
+      name: longitude
+      in: query
+      schema:
+        type: string
+    latitude:
+      name: latitude
+      in: query
+      schema:
+        type: string
+    radius:
+      name: radius
+      in: query
+      schema:
+        type: string
