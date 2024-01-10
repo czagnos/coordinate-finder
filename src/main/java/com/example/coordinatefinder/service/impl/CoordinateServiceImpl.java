@@ -4,12 +4,21 @@ import com.example.coordinatefinder.client.GoogleClient;
 import com.example.coordinatefinder.config.Constant;
 import com.example.coordinatefinder.config.GoogleProperties;
 import com.example.coordinatefinder.entity.Coordinate;
+import com.example.coordinatefinder.model.CoordinateResponse;
+import com.example.coordinatefinder.model.FindCoordinateResponse;
+import com.example.coordinatefinder.model.Place;
 import com.example.coordinatefinder.model.PlacesNearbySearchResponse;
+import com.example.coordinatefinder.repository.CoordinateRepository;
 import com.example.coordinatefinder.service.CoordinateService;
 import com.example.coordinatefinder.service.model.CoordinateServiceRequest;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 @RequiredArgsConstructor
@@ -22,10 +31,12 @@ public class CoordinateServiceImpl implements CoordinateService {
     private final ObjectMapper objectMapper;
 
     @Override
-    public Void findCoordinate(CoordinateServiceRequest coordinateServiceRequest) {
+    public FindCoordinateResponse findCoordinate(CoordinateServiceRequest coordinateServiceRequest) {
         final String latLanCoordinate = coordinateServiceRequest.getLatitude()
                 + Constant.COMMA
                 + coordinateServiceRequest.getLongitude();
+
+        FindCoordinateResponse response = new FindCoordinateResponse();
 
         Optional<Coordinate> coordinateOptional = coordinateRepository.findCoordinateByLatitudeAndLongitudeAndRadius(
                 coordinateServiceRequest.getLatitude(),
@@ -33,15 +44,48 @@ public class CoordinateServiceImpl implements CoordinateService {
                 coordinateServiceRequest.getRadius());
 
         if (coordinateOptional.isEmpty()) {
-            PlacesNearbySearchResponse response = googleClient.getNearbyPlaces(
+            final PlacesNearbySearchResponse placesNearbySearchResponse = googleClient.getNearbyPlaces(
                     latLanCoordinate,
                     coordinateServiceRequest.getRadius(),
                     googleProperties.getApiKey());
 
-            Coordinate coordinate = saveCoordinate(coordinateServiceRequest, response);
+            saveCoordinate(coordinateServiceRequest, placesNearbySearchResponse);
+
+            response =  prepareFindCoordinateResponse(placesNearbySearchResponse);
+        } else {
+            try {
+                final PlacesNearbySearchResponse placesNearbySearchResponse =
+                        objectMapper.readValue(coordinateOptional.get().getResult(), PlacesNearbySearchResponse.class);
+
+                response = prepareFindCoordinateResponse(placesNearbySearchResponse);
+
+            } catch (JsonProcessingException exception) {
+
+            }
         }
 
-        return null;
+        return response;
+    }
+
+    private FindCoordinateResponse prepareFindCoordinateResponse(final PlacesNearbySearchResponse placesNearbySearchResponse) {
+        final FindCoordinateResponse findCoordinateResponse = new FindCoordinateResponse();
+        final List<CoordinateResponse> coordinateList =  new ArrayList<>();
+
+        for (final Place place : placesNearbySearchResponse.getResults()) {
+            final CoordinateResponse coordinateResponse = new CoordinateResponse();
+
+            final double latitude = place.getGeometry().getLocation().getLat();
+            final double longitude = place.getGeometry().getLocation().getLng();
+
+            coordinateResponse.setLatitude(latitude);
+            coordinateResponse.setLongitude(longitude);
+
+            coordinateList.add(coordinateResponse);
+        }
+
+        findCoordinateResponse.setCoordinateList(coordinateList);
+
+        return findCoordinateResponse;
     }
 
     private Coordinate saveCoordinate(final CoordinateServiceRequest coordinateServiceRequest,
