@@ -19,6 +19,10 @@ paths:
       responses:
         "200":
           description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FindCoordinateResponse'
         default:
           description: Error
 
@@ -39,3 +43,20 @@ components:
       in: query
       schema:
         type: string
+  schemas:
+    FindCoordinateResponse:
+      type: object
+      properties:
+        coordinateList:
+          type: array
+          items:
+            $ref: '#/components/schemas/CoordinateResponse'
+    CoordinateResponse:
+      type: object
+      properties:
+        latitude:
+          type: number
+          format: double
+        longitude:
+          type: number
+          format: double
